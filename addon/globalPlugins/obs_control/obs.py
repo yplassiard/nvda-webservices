@@ -5,20 +5,19 @@ import threading
 import time
 
 import addonHandler
-curDir = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, curDir)
-sys.path.insert(0, os.path.join(curDir, "html"))
+# curDir = os.path.abspath(os.path.dirname(__file__))
+# sys.path.insert(0, curDir)
+# sys.path.insert(0, os.path.join(curDir, "html"))
 import websocket
 import events
+import service
 
 addonHandler.initTranslation()
 
 
-class Service(threading.Thread):
+class Service(service.Service):
     """OBS Service controller"""
     _socket = None
-    _inqueue = queue.Queue()
-    _outqueue = queue.Queue()
     _categories = []
     _status = [_("Stream status: unknown"), _("Recording status: unknown")]
     _scenes = []
@@ -27,7 +26,6 @@ class Service(threading.Thread):
                       2: "obsIdentified",
                       5: "obsEvent",
                       7: "obsResponse"}
-    should_quit = False
     name = "OBS"
 
     def __init__(self):
@@ -43,10 +41,9 @@ class Service(threading.Thread):
         self._categories = []
         self._reqId = 0
         self._scenes = []
-        self.postLog("Disconnected")
         self.postDisconnected()
 
-     def try_connect(self):
+    def try_connect(self):
         try:
             self._socket = websocket.create_connection("ws://localhost:4455/")
             self._socket.settimeout(0.5)
@@ -54,72 +51,41 @@ class Service(threading.Thread):
             return None
         self.postLog("Connected to OBS")
         return self._socket
-
-    def pump_input_event(self):
-        try:
-            event = self._inqueue.get_nowait()
-            code = event["code"]
-            if code == events.QUIT:
-                self.should_quit = True
-                return
-            if code == events.CATEGORY_GET_ITEMS:
-                id = event["id"]
-                self.postMenuItemsList(self._menus[id])
+    def on_menu_get_items(self, event, args):
+        id = args["id"]
+        self.postMenuItemsList(self._menus[id])
     
-    def run(self):
-        statusTime = 0
-        while self.should_quit is False:
-            self.pump_input_event()
+    def execute(self):
+        if self._socket is None:
+            self.try_connect()
             if self._socket is None:
-                self.try_connect()
-                if self._socket is None:
-                    self.disconnect()
-                    time.sleep(3)
-                    continue
-            data = None
-            try:
-                data = self._socket.recv()
-            except websocket._exceptions.WebSocketTimeoutException:
-                continue
-            except Exception as ex:
                 self.disconnect()
-            try:
-                jsdata = json.loads(data)
-                op = jsdata["op"]
-                args = jsdata["d"]
-                op_method = self._supported_ops.get(op, None)
-                if op_method is None:
-                    self.postLog(f"Op {op} not supported yet")
-                    continue
-                attr = getattr(self, f"on_{op_method}", None)
-                if attr is not None:
-                    attr(op, args)
-                else:
-                    self.postLog(f"{op}: Unhandled. data: {data}")
-            except Exception as ex:
-                self.postLog(f"Exception while handling {data}: {ex}")
-        self.postLog("OBS Control thread terminating")
+                time.sleep(3)
+                return
+        data = None
+        try:
+            data = self._socket.recv()
+        except websocket._exceptions.WebSocketTimeoutException:
+            return
+        except Exception as ex:
+            self.disconnect()
+            return
+        try:
+            jsdata = json.loads(data)
+            op = jsdata["op"]
+            args = jsdata["d"]
+            op_method = self._supported_ops.get(op, None)
+            if op_method is None:
+                self.postLog(f"Op {op} not supported yet")
+                return
+            attr = getattr(self, f"on_{op_method}", None)
+            if attr is not None:
+                attr(op, args)
+            else:
+                self.postLog(f"{op}: Unhandled. data: {data}")
+        except Exception as ex:
+            self.postLog(f"Exception while handling {data}: {ex}")
 
-    def postEvent(self, payload):
-        self._outqueue.put(payload)
-
-    def postDisconnected(self):
-        self.postEvent({"event": events.DISCONNECTED})
-    def postReady(self):
-        self.postEvent({"event": events.READY})
-    
-    def postLog(self, msg):
-        self.postEvent({"event": events.LOG, "message": msg})
-
-    def postUserNotification(self, msg):
-        self.postEvent({"event": events.USER_NOTIFICATION, "message": msg})
-
-    def postCategoryUpdate(self):
-        self.postEvent({"event": events.CATEGORY_UPDATE, "categories": self._categories})
-
-    def postMenuItemsList(self, items):
-        self.postEvent({"event": events.CATEGORY_MENU_ITEMS_LIST, "items": items})
-        
     def on_obsHello(self, op, args):
         self._socket.send(json.dumps({"op": 1,
                                       "d": {"rpcVersion": 1}}))
@@ -171,7 +137,7 @@ class Service(threading.Thread):
         elif rtype == "GetRecordStatus":
             menu = _("Status")
             if menu not in self._categories:
-                self._categories.append(("status";, menu))
+                self._categories.append(("status", menu))
                 self.postCategoryUpdate()
             outActive = rdata["outputActive"]
             outTimecode = rdata["outputTimecode"]
