@@ -30,6 +30,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     scriptCategory = _("Web Services")
     enabled = False
     _interfaceGestures = {
+        "kb:shift+leftArrow": "previousService",
+        "kb:shift+rightArrow": "nextService",
         "kb:leftArrow": "previousMenu",
         "kb:rightArrow": "nextMenu",
         "kb:c": "sayCurrentMenu",
@@ -38,11 +40,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         "kb:enter": "activate",
         "kb:f5": "refresh",
         "kb:escape": "toggleInterface",
-        "kb:nvda+shift+control+s": "toggleInterface",
+        "kb:nvda+shift+control+space": "toggleInterface",
     }
 
     _services = []
-        
+    _menus = {}
+    _currentService = None
+    
     def __init__(self):
         """Initializes the global plugin object."""
         super(globalPluginHandler.GlobalPlugin, self).__init__()
@@ -134,7 +138,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     def script_toggleInterface(self, gesture):
         self.enabled = not self.enabled
         if self.enabled:
-            ui.message(_("Controlling {self._currentService.name}"))
+            if len(self._services) == 0:
+                ui.message(_("No service registered"))
+                self.enabled = False
+            if self._currentService is None:
+                self._currentService = self._services[0]
+                self._serviceIdx = 0
+            ui.message(_(f"Controlling {self._currentService.name}"))
             self.script_sayCurrentMenu()
             self.bindGestures(self._interfaceGestures)
         else:
@@ -145,6 +155,27 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     script_toggleInterface.__doc__ = _("Toggles the WebService control interface on or off")
 
+    def script_previousService(self, gesture):
+        if len(self._services) == 0:
+            ui.message(_("No service registered"))
+            return
+        self._serviceIdx -= 1
+        if self._serviceIdx < 0:
+            self._serviceIdx = len(self._services) - 1
+        ui.message(_(f"Service {self._currentService.name}"))
+    script_previousService.__doc__ = _("Switch to the previous webservice")
+
+    def script_nextService(self, gesture):
+        if len(self._services) == 0:
+            ui.message(_("No service registered"))
+            return
+        self._serviceIdx += 1
+        if self._serviceIdx >= len(self._services):
+            self._serviceIdx = 0
+        ui.message(_(f"Service {self._currentService.name}"))
+    script_previousService.__doc__ = _("Switch to the previous webservice")
+
+    
     def script_previousMenu(self, gesture):
         if self._catIdx is None or len(self._categories) == 0:
             tones.beep(220, 100)
@@ -177,5 +208,5 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         pass
     
     __gestures = {
-        "kb:nvda+shift+control+s": "toggleInterface",
+        "kb:nvda+shift+control+space": "toggleInterface",
     }

@@ -109,12 +109,12 @@ class Service(service.Service):
             catName = _("Scenes")
             if catName not in self._categories:
                 self._categories.append(("scenes", catName))
-                self.postCategoryUpdate()
+                self.postMenuUpdate()
         elif rtype == "GetStreamStatus":
             menu = _("Status")
             if menu not in self._categories:
                 self._categories.append(("status", menu))
-                self.postCategoryUpdate()
+                self.postMenuUpdate()
             outActive = rdata["outputActive"]
             outReconnect = rdata["outputReconnecting"]
             outSkippedFrames = rdata["outputSkippedFrames"]
@@ -138,7 +138,7 @@ class Service(service.Service):
             menu = _("Status")
             if menu not in self._categories:
                 self._categories.append(("status", menu))
-                self.postCategoryUpdate()
+                self.postMenuUpdate()
             outActive = rdata["outputActive"]
             outTimecode = rdata["outputTimecode"]
             msg = _("Record Status: ")

@@ -17,6 +17,7 @@ class Service(threading.Thread):
     _inqueue = queue.Queue()
     _outqueue = queue.Queue()
     _menus = {}
+    _menuList = []
     _menuId = 0
 
     def __init__(self, params=None, *args, **kwargs):
