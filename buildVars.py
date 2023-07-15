@@ -16,16 +16,16 @@ def _(arg):
 # Add-on information variables
 addon_info = {
 	# add-on Name/identifier, internal for NVDA
-	"addon_name": "obs_control",
+	"addon_name": "web_services",
 	# Add-on summary, usually the user visible name of the addon.
 	# Translators: Summary for this add-on
 	# to be shown on installation and add-on information found in Add-ons Manager.
-	"addon_summary": _("OBS Control"),
+	"addon_summary": _("Web Services control from NVDA"),
 	# Add-on description
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
-	"addon_description": _("""Control OBS Studio from NVDA."""),
+	"addon_description": _("""Controls web services directly from NVDA"""),
 	# version
-	"addon_version": "2023.06.05",
+	"addon_version": "2023.07.15",
 	# Author(s)
 	"addon_author": u"Yannick PLASSIARD <podcastcecitek@gmail.com>",
 	# URL for the add-on documentation support
@@ -35,7 +35,7 @@ addon_info = {
 	# Minimum NVDA version supported (e.g. "2018.3.0", minor version is optional)
 	"addon_minimumNVDAVersion": "2021.1",
 	# Last NVDA version supported/tested (e.g. "2018.4.0", ideally more recent than minimum version)
-	"addon_lastTestedNVDAVersion": "2023.2",
+	"addon_lastTestedNVDAVersion": "2023.3",
 	# Add-on update channel (default is None, denoting stable releases,
 	# and for development releases, use "dev".)
 	# Do not change unless you know what you are doing!
@@ -49,7 +49,8 @@ addon_info = {
 # the list can be written as follows:
 pythonSources = ["addon/globalPlugins/*.py",
                  "addon/globalPlugins/*/*.py",
-                 "addon/globalPlugins/*/*/*.py"]
+                 "addon/globalPlugins/*/*/*.py",
+                 "services/*.py"]
 # For more information on SCons Glob expressions please take a look at:
 # https://scons.org/doc/production/HTML/scons-user/apd.html
 
