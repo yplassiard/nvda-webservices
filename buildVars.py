@@ -49,8 +49,7 @@ addon_info = {
 # the list can be written as follows:
 pythonSources = ["addon/globalPlugins/*.py",
                  "addon/globalPlugins/*/*.py",
-                 "addon/globalPlugins/*/*/*.py",
-                 "services/*.py"]
+                 "addon/globalPlugins/*/*/*.py"]
 # For more information on SCons Glob expressions please take a look at:
 # https://scons.org/doc/production/HTML/scons-user/apd.html
 

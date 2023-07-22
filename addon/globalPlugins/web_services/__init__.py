@@ -5,6 +5,7 @@
 #This file is covered by the GNU General Public License.
 #See the file LICENSE for more details.
 import os, sys, time, codecs, re
+import importlib
 import globalVars
 import globalPluginHandler, logHandler, scriptHandler
 import api, controlTypes
@@ -19,7 +20,7 @@ curDir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, curDir)
 sys.path.insert(0, os.path.join(curDir, "html"))
 import events
-import obs
+import netservice
 import websocket
 import updater
 import addonHandler, languageHandler
@@ -46,11 +47,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     _services = []
     _menus = {}
     _currentService = None
-    
+
     def __init__(self):
         """Initializes the global plugin object."""
         super(globalPluginHandler.GlobalPlugin, self).__init__()
-        self._services.append(obs.Service())
+        self._net = netservice.Server(self, 62100)
+        self._net.start()
+        self.discoverServices()
         for service in self._services:
             service.start()
         self.updater = updater.ExtensionUpdater()
@@ -62,19 +65,63 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         import addonHandler
         version = None
         for addon in addonHandler.getAvailableAddons():
-            if addon.name == "obs_control":
+            if addon.name == "web_services":
                 version = addon.version
         if version is None:
-            version = 'unknown'
+            version = "unknown"
         logHandler.log.info(f"obs_control ({version}) initialized")
 
-        
+    def discoverServices(self):
+        """Discovers all services and try to load them"""
+        configPath = config.getUserDefaultConfigPath()
+        curDir = os.getcwd()
+        pathList = [os.path.join(configPath, "webServices"),
+                    os.path.join(configPath, "addons", "web_services", "globalPlugins",
+                                 "web_services", "services")]
+        for path in pathList:
+            for entry in os.scandir(path):
+                m = re.match("^(.*)\.py$", entry.name)
+                if m:
+                    moduleDir = os.path.dirname(entry.path)
+                    if moduleDir not in sys.path:
+                        sys.path.insert(0, moduleDir)
+                    mod = None
+                    try:
+                        logHandler.log.info("Importing " + m.group(1))
+                        mod = importlib.import_module(m.group(1))
+                        service = getattr(mod, "Service", None)
+                        if service is None:
+                            logHandler.log.error(f"{m.group(1)} has no \!Service\" attribute")
+                            continue
+                        logHandler.log.info(f"Loading service {m.group(1)} ...")
+                        serviceInstance = service()
+                        self._services.append(serviceInstance)
+                    except Exception as ex:
+                        logHandler.log.error(f"Failed to load service: {ex}")
+        logHandler.log.info(f"{len(self._services)} services loaded")
+
+                    
 
     def postServiceEvent(self, service, event, params=None):
         data = {"event": event}
         data.extend(params)
         service._inqueue.put(data)
-    
+
+    def registerService(self, service):
+        """Registers a service to be used"""
+        self._services.append(service)
+        logHandler.log.info(f"Registering service {service}")
+
+    def unregisterService(self, service):
+        """Unregisters the service"""
+        for srv in self._services:
+            if srv == service:
+                service.terminate()
+                self._services.remove(service)
+                lohHandler.log.info(f"Unregistericng {service}")
+                return
+        logHandler.log.error(f"Service {service} canot be unregistered")
+
     def terminateServices(self):
         for service in self._services:
             self.postServiceEvent(service, events.QUIT)

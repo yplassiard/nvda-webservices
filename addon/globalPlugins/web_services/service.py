@@ -20,8 +20,10 @@ class Service(threading.Thread):
     _menuList = []
     _menuId = 0
 
-    def __init__(self, params=None, *args, **kwargs):
+    def __init__(self, name, display_name, params=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._name = name
+        self._display_name = display_name
         self._config = params
     
     def handleInputEvent(self):

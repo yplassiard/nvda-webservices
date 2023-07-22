@@ -1,0 +1,4 @@
+*~
+*#
+*.nvda-addon
+.scons*
