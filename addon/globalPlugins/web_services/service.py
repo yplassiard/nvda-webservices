@@ -16,6 +16,7 @@ import events
 class Service(threading.Thread):
     _inqueue = queue.Queue()
     _outqueue = queue.Queue()
+    _available = False
     _menus = {}
     _menuList = []
     _menuId = 0
@@ -25,6 +26,25 @@ class Service(threading.Thread):
         self._name = name
         self._display_name = display_name
         self._config = params
+
+    def __str__(self):
+        """Service's display name"""
+        msg = self._display_name
+        if not self._available:
+            msg += " " + _("disabled")
+        return msg
+    
+
+    def enable(self):
+        self.postLog("enabled")
+        self._available = True
+
+    def disable(self):
+        self.postLog("Disabled")
+        self._available = False
+
+    def isAvailable(self):
+        return self._available
     
     def handleInputEvent(self):
         """Gets en avent from the input queue and handles it."""
@@ -35,11 +55,11 @@ class Service(threading.Thread):
                 self.should_quit = True
                 self.postLog("Exiting")
             else:
-                attr = getattr(self, f"on_{events.NAMES[code]}", None)
+                attr = getattr(self, f"on_{events.toString(code)}", None)
                 if attr:
                     attr(code, data)
                 else:
-                    self.postLog(f"Unhandled event {events.NAMES[code]}: {data}")
+                    self.postLog(f"Unhandled event {events.toString(code)}: {data}")
         except queue.Empty:
             pass
         except Exception as ex:
@@ -70,7 +90,7 @@ class Service(threading.Thread):
         self._menus[self._menuId] = {"name": name,
                                      "items": initialChoices}
         self._menuList.append((self._menuId, name))
-        self.postMenuUpdate(_menuList)
+        self.postMenuUpdate()
         return self._menuId
 
     def removeMenu(self, menuId):
@@ -113,5 +133,16 @@ class Service(threading.Thread):
 
     def postMenuItemsList(self, items):
         """Items has been updated for a given menu"""
-        self.postEvent({"event": events.CATEGORY_MENU_ITEMS_LIST, "items": items})
+        self.postEvent({"event": events.MENU_GET_ITEMS, "items": items})
         
+
+
+    #
+    ## Input events
+    #
+
+    def on_menu_update(self, params=None):
+        """Asked by the global plugin to retrieve available menus"""
+        self.postMenuUpdate()
+
+

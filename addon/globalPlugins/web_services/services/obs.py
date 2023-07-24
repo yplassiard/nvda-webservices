@@ -15,12 +15,14 @@ import service
 addonHandler.initTranslation()
 
 
+SERVICE_DISPLAY_NAME = "OBS Studio"
 class Service(service.Service):
     """OBS Service controller"""
     _socket = None
-    _categories = []
     _status = [_("Stream status: unknown"), _("Recording status: unknown")]
+    _statusMenuId = None
     _scenes = []
+    _sceneMenuId = None
     _reqId = 0
     _supported_ops = {0: "obsHello",
                       2: "obsIdentified",
@@ -29,7 +31,7 @@ class Service(service.Service):
     name = "OBS"
 
     def __init__(self):
-        super().__init__()
+        super().__init__(self.name, "OBS Studio")
         _socket = None
     def terminate(self):
         self.should_quit = True
@@ -41,6 +43,7 @@ class Service(service.Service):
         self._categories = []
         self._reqId = 0
         self._scenes = []
+        self.disable()
         self.postDisconnected()
 
     def try_connect(self):
@@ -50,6 +53,7 @@ class Service(service.Service):
         except Exception as ex:
             return None
         self.postLog("Connected to OBS")
+        self.enable()
         return self._socket
     def on_menu_get_items(self, event, args):
         id = args["id"]
@@ -106,15 +110,12 @@ class Service(service.Service):
         if rtype == "GetSceneList":
             self._curScene = rdata["currentProgramSceneName"]
             self._scenes = rdata["scenes"]
-            catName = _("Scenes")
-            if catName not in self._categories:
-                self._categories.append(("scenes", catName))
-                self.postMenuUpdate()
+            self._sceneMenuId = self.addMenu(_("Scenes"))
+        elif rtype == "CurrentProgramSceneChanged":
+            self._curScene = rdata["sceneName"]
         elif rtype == "GetStreamStatus":
-            menu = _("Status")
-            if menu not in self._categories:
-                self._categories.append(("status", menu))
-                self.postMenuUpdate()
+            if self._statusMenuId == None:
+                self._statusMenuId = self.addMenu(_("Status"))
             outActive = rdata["outputActive"]
             outReconnect = rdata["outputReconnecting"]
             outSkippedFrames = rdata["outputSkippedFrames"]
@@ -135,10 +136,8 @@ class Service(service.Service):
                 self.postUserNotification(msg)
             
         elif rtype == "GetRecordStatus":
-            menu = _("Status")
-            if menu not in self._categories:
-                self._categories.append(("status", menu))
-                self.postMenuUpdate()
+            if self._statusMenuId == None:
+                self._statusMenuId = self.addMenu(_("Status"))
             outActive = rdata["outputActive"]
             outTimecode = rdata["outputTimecode"]
             msg = _("Record Status: ")
@@ -152,8 +151,9 @@ class Service(service.Service):
             msg += ", ".join(strList) + "."
             if msg != self._status[1]:
                 self._status[1] = msg
-                self.postUserNotification(msg)
-            
+            elif rtype in ["SceneTransitionEnded", "SceneTransitionStarted"]:
+                return
+                
         else:
             self.postLog(f"{rtype} Unhandled request response: {args}")
         

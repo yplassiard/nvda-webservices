@@ -10,7 +10,7 @@ NET_OPS = {
     "0": "ping",
     "1": "identify",
     "2": "logout",
-    "3": "meouAdd",
+    "3": "menuAdd",
     "4": "menuDel",
     "5": "menuUpdate",
     "6": "menuItemAdd",
@@ -32,6 +32,7 @@ class Server(threading.Thread):
     _gp = None
 
     def __init__(self, gp, port, *args, **kwargs):
+        kwargs["name"] = "WSNetwork"
         super().__init__(*args, **kwargs)
         self._port = port
         self._gp = gp

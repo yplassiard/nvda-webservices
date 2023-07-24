@@ -46,7 +46,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     _services = []
     _menus = {}
+    _menuItems = {}
     _currentService = None
+    _menuIdx = 0
+    _itemIdx = 0
+    _serviceIdx = None
 
     def __init__(self):
         """Initializes the global plugin object."""
@@ -56,6 +60,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self.discoverServices()
         for service in self._services:
             service.start()
+        if len(self._services):
+            self.focusService(self._services[0])
+            
         self.updater = updater.ExtensionUpdater()
         self.updater.start()
         self.inTimer = False
@@ -69,7 +76,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 version = addon.version
         if version is None:
             version = "unknown"
-        logHandler.log.info(f"obs_control ({version}) initialized")
+        logHandler.log.info(f"web_services ({version}) initialized")
 
     def discoverServices(self):
         """Discovers all services and try to load them"""
@@ -100,11 +107,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                         logHandler.log.error(f"Failed to load service: {ex}")
         logHandler.log.info(f"{len(self._services)} services loaded")
 
-                    
+
+    def focusService(self, service):
+        """Gives the given service the virtual focus"""
+        if service:
+            self._currentService = service
+        if service.isAvailable():
+            self.postServiceEvent(service, events.MENU_UPDATE)
+        self._serviceIdx = self._services.index(service)
+        
 
     def postServiceEvent(self, service, event, params=None):
         data = {"event": event}
-        data.extend(params)
+        data.update(params)
         service._inqueue.put(data)
 
     def registerService(self, service):
@@ -168,18 +183,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     def dispatchServiceEvent(self, service, data):
         code = data["event"]
         if code == events.LOG:
-            logHandler.log.info(f"{service.name}: {data['message']}")
+            logHandler.log.info(f"{service}: {data['message']}")
         elif code == events.DISCONNECTED:
-            if self.enabled:
-                ui.message(_(f"{service.name} disconnected"))
-                self.script_toggleInterface(None)
+            if service.isAvailable():
+                ui.message(_(f"{service} disconnected"))
         elif code == events.USER_NOTIFICATION:
             ui.message(f"{service.name}: {data['message']}")
         elif code == events.READY:
             ui.message(_(f"{service.name} ready"))
         elif code == events.MENU_UPDATE:
-            self._menus[service.name] = data["menus"]            
-        else:
+            self._menus[service.name] = data["menus"]
+        elif code == events.MENU_GET_ITEMS:
+            self._menuItems[service.name] = data["items"]
+            if self._itemIdx >= len(self._menuItems[service.name]):
+                self._itemIdx = 0
+
             logHandler.log.error(f"Failed to parse event: {service.name}, {data}")
 
     def script_toggleInterface(self, gesture):
@@ -191,7 +209,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             if self._currentService is None:
                 self._currentService = self._services[0]
                 self._serviceIdx = 0
-            ui.message(_(f"Controlling {self._currentService.name}"))
+            ui.message(_(f"Controlling {self._currentService}"))
             self.script_sayCurrentMenu()
             self.bindGestures(self._interfaceGestures)
         else:
@@ -209,7 +227,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self._serviceIdx -= 1
         if self._serviceIdx < 0:
             self._serviceIdx = len(self._services) - 1
-        ui.message(_(f"Service {self._currentService.name}"))
+        self._currentService = self._services[self._serviceIdx]
+        ui.message(_(f"Service {self._currentService}"))
     script_previousService.__doc__ = _("Switch to the previous webservice")
 
     def script_nextService(self, gesture):
@@ -219,36 +238,58 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self._serviceIdx += 1
         if self._serviceIdx >= len(self._services):
             self._serviceIdx = 0
-        ui.message(_(f"Service {self._currentService.name}"))
+        self._currentService = self._services[self._serviceIdx]
+        ui.message(_(f"Service {self._currentService}"))
     script_previousService.__doc__ = _("Switch to the previous webservice")
 
     
     def script_previousMenu(self, gesture):
-        if self._catIdx is None or len(self._categories) == 0:
-            tones.beep(220, 100)
+        if not self._currentService.isAvailable():
+            ui.message(_(f"{self._currentService} disabled"))
             return
-        self._catIdx -= 1
-        if self._catIdx == -1:
-            self._catIdx = len(self._categories) - 1
-        self.script_sayCurrentCategory()
+        menus = self._menus.get(self._currentService.name, None)
+        if menus is None:
+            ui.message(_("No menu for this service"))
+            return
+        self._menuIdx -= 1
+        if self._menuIdx == -1:
+            self._menuIdx = len(self._menus) - 1
+        self.script_sayCurrentMenu()
 
     def script_nextMenu(self, gesture):
-        if self._catIdx is None or len(self._categories) == 0:
-            tones.beep(220, 100)
+        """Show the next menu if the service is available"""
+        if not self._currentService.isAvailable():
+            ui.message(_(f"{self._currentService} disabled"))
             return
-        self._catIdx = (self._catIdx + 1) % len(self._categories)
-        self.script_sayCurrentCategory()
+        menus = self._menus.get(self._currentService.name, None)
+        if menus is None:
+            ui.message(_("No menu for this service"))
+            return
+        self._menuIdx += 1
+        self._menuIdx %= len(menus)
+        self.script_sayCurrentMenu()
 
     def script_sayCurrentMenu(self, gesture=None):
         try:
-            catName = self._categories[self._catIdx][1]
-            ui.message(_(f"{catName} menu"))
-        except:
+            menuId = self._menus[self._currentService.name][self._menuIdx][0]
+            self.postServiceEvent(self._currentService, events.MENU_GET_ITEMS, {"id": menuId})
+            menuName = self._menus[self._currentService.name][self._menuIdx][1]
+            ui.message(_(f"{menuName} menu"))
+        except Exception as ex:
+            logHandler.log.error(f"Unable to present menu {self._menuIdx}: {ex}")
             ui.message(_("No menu selected"))
     def script_focusPrevious(self, gesture):
-        pass
-    def script_focusNext(sepb, gesture):
-        pass
+        self._itemIdx -= 1
+        if self._itemIdx < 0:
+            self._itemIdx = len(self._items) - 1
+        self.script_sayItem(None)
+    def script_focusNext(self, gesture):
+        self._itemIdx = (self._itemIdx + 1) % len(self._menuItems)
+        self.script_sayItem(None)
+    def script_sayItem(self, gesture):
+        ui.message(self._menuItems[self._itemIdx])
+        
+        
     def script_activate(self, gesture):
         pass
     def scriptÆrefresh(self, gesture):

@@ -13,14 +13,14 @@ EVT_NAMES = {
     QUIT: "quit",
     DISCONNECTED: "disconnected",
     LOG: "log",
-    USER_NOTIFICATION: "userNotification",
+    USER_NOTIFICATION: "user_notification",
     READY: "ready",
-    MENU_UPDATE: "menuUpdate",
-    MENU_GET_ITEMS: "menuGetItems",
-    SERVICE_NEW: "serviceNew",
-    SERVICE_DEL: "serviceDel"
+    MENU_UPDATE: "menu_update",
+    MENU_GET_ITEMS: "menu_get_items",
+    SERVICE_NEW: "service_new",
+    SERVICE_DEL: "service_del"
     }
 
 def toString(code):
     """Returns an event's name based on its code."""
-    return EVT_NAMES.get(code, "unknownEvent")
+    return EVT_NAMES.get(code, "unknown_event")

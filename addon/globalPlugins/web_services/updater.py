@@ -15,6 +15,9 @@ import os
 class ExtensionUpdater(threading.Thread):
     quit = False
     queue = queue.Queue()
+    def __init__(self, *args, **kwargs):
+        kwargs["name"] = "WSUpdater"
+        super().__init__(*args, **kwargs)
 
     def run(self):
         self.lastCheck = 0
