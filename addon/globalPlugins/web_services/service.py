@@ -20,6 +20,7 @@ class Service(threading.Thread):
     _menus = {}
     _menuList = []
     _menuId = 0
+    _customizedGestures = {}
 
     def __init__(self, name, display_name, params=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -45,6 +46,10 @@ class Service(threading.Thread):
 
     def isAvailable(self):
         return self._available
+
+    def getCustomizedGestures(self):
+        """Returns the customized gestures for this service."""
+        return self._customizedGestures
     
     def handleInputEvent(self):
         """Gets en avent from the input queue and handles it."""

@@ -113,8 +113,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         logHandler.log.info(f"{len(self._services)} services loaded")
 
 
+    def bindCustomizedGestures(self):
+        """When a service is focused, bind per-service customized gestures, if any"""
+        gestures = self._currentService.getCustomizedGestures()
+        for gesture in gestures:
+            self.bindGesture(gesture, "execScriptGesture")
+
+    def unbindCustomizedGestures(self):
+        self.clearGestureBindings()
+        self.bindGestures(self.__gestures)
+        self.bindGestures(self._interfaceGestures)
+
     def focusService(self, service):
         """Gives the given service the virtual focus"""
+        self.unbindCustomizedGestures()
         if service:
             self._currentService = service
         if service.isAvailable():
@@ -217,6 +229,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             ui.message(_(f"Controlling {self._currentService}"))
             self.script_sayCurrentMenu()
             self.bindGestures(self._interfaceGestures)
+            self.bindCustomizedGestures()
         else:
             ui.message(_("Off"))
             self.clearGestureBindings()
@@ -305,12 +318,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     script_sayItem.__doc__ = _("Speaks the selected menu item")
         
     def script_activate(self, gesture):
-        pass
-    scrspt_activate.__doc__ = _("Activates this menu item")
+        ui.message(_("Unimplemented"))
+    script_activate.__doc__ = _("Activates this menu item")
 
-    def scriptÆrefresh(self, gesture):
-        pass
-
+    def script_refresh(self, gesture):
+        self.discoverServices()
     script_refresh.__doc__ = _("Refreshes the interface")
 
     __gestures = {
