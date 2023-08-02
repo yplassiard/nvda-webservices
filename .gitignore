@@ -2,3 +2,5 @@
 *#
 *.nvda-addon
 .scons*
+*.mo
+addon/locale/*/manifest.ini
