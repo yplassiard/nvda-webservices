@@ -31,7 +31,7 @@ class Service(service.Service):
     name = "OBS"
 
     def __init__(self):
-        super().__init__(self.name, "OBS Studio")
+        super().__init__(self.name, SERVICE_DISPLAY_NAME)
         _socket = None
     def terminate(self):
         self.should_quit = True

@@ -86,7 +86,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                     os.path.join(configPath, "addons", "web_services", "globalPlugins",
                                  "web_services", "services")]
         for path in pathList:
-            for entry in os.scandir(path):
+            dir_generator = None
+            try:
+                dir_generator = os.scandir(path)
+            except Exception:
+                continue
+            for entry in dir_generator:
                 m = re.match("^(.*)\.py$", entry.name)
                 if m:
                     moduleDir = os.path.dirname(entry.path)
@@ -245,7 +250,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     
     def script_previousMenu(self, gesture):
         if not self._currentService.isAvailable():
-            ui.message(_(f"{self._currentService} disabled"))
+            ui.message(_(f"{self._currentService}"))
             return
         menus = self._menus.get(self._currentService.name, None)
         if menus is None:
@@ -256,10 +261,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             self._menuIdx = len(self._menus) - 1
         self.script_sayCurrentMenu()
 
+    script_previousMenu.__doc__ = _("Select previous menu for the active service")
+
+
     def script_nextMenu(self, gesture):
-        """Show the next menu if the service is available"""
         if not self._currentService.isAvailable():
-            ui.message(_(f"{self._currentService} disabled"))
+            ui.message(_(f"{self._currentService}"))
             return
         menus = self._menus.get(self._currentService.name, None)
         if menus is None:
@@ -268,6 +275,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self._menuIdx += 1
         self._menuIdx %= len(menus)
         self.script_sayCurrentMenu()
+    script_nextMenu.__doc__ = _("Select next menu for the active service")
 
     def script_sayCurrentMenu(self, gesture=None):
         try:
@@ -278,23 +286,33 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         except Exception as ex:
             logHandler.log.error(f"Unable to present menu {self._menuIdx}: {ex}")
             ui.message(_("No menu selected"))
+    script_sayCurrentMenu.__doc__ = _("Speaks the current menu name")
+
     def script_focusPrevious(self, gesture):
         self._itemIdx -= 1
         if self._itemIdx < 0:
             self._itemIdx = len(self._items) - 1
         self.script_sayItem(None)
+    script_focusPrevious.__doc__ = _("Focus the previous menu item")
+    
     def script_focusNext(self, gesture):
         self._itemIdx = (self._itemIdx + 1) % len(self._menuItems)
         self.script_sayItem(None)
+    script_focusNext.__doc__ = _("Focus the next menu item")
+
     def script_sayItem(self, gesture):
         ui.message(self._menuItems[self._itemIdx])
-        
+    script_sayItem.__doc__ = _("Speaks the selected menu item")
         
     def script_activate(self, gesture):
         pass
+    scrspt_activate.__doc__ = _("Activates this menu item")
+
     def scriptÆrefresh(self, gesture):
         pass
-    
+
+    script_refresh.__doc__ = _("Refreshes the interface")
+
     __gestures = {
         "kb:nvda+shift+control+space": "toggleInterface",
     }
