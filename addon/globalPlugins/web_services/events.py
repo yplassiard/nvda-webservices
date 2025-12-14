@@ -7,6 +7,7 @@ MENU_UPDATE = 5
 MENU_GET_ITEMS = 6
 SERVICE_NEW = 7
 SERVICE_DEL = 8
+MENU_ACTIVATE = 9
 
 
 EVT_NAMES = {
@@ -18,7 +19,8 @@ EVT_NAMES = {
     MENU_UPDATE: "menu_update",
     MENU_GET_ITEMS: "menu_get_items",
     SERVICE_NEW: "service_new",
-    SERVICE_DEL: "service_del"
+    SERVICE_DEL: "service_del",
+    MENU_ACTIVATE: "menu_activate"
     }
 
 def toString(code):

@@ -136,7 +136,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def postServiceEvent(self, service, event, params=None):
         data = {"event": event}
-        data.update(params)
+        if params:
+            data.update(params)
         service._inqueue.put(data)
 
     def registerService(self, service):
@@ -208,14 +209,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             ui.message(f"{service.name}: {data['message']}")
         elif code == events.READY:
             ui.message(_(f"{service.name} ready"))
+            self.bindCustomizedGestures()
         elif code == events.MENU_UPDATE:
             self._menus[service.name] = data["menus"]
         elif code == events.MENU_GET_ITEMS:
             self._menuItems[service.name] = data["items"]
-            if self._itemIdx >= len(self._menuItems[service.name]):
+            items = data["items"].get("items", [])
+            if self._itemIdx >= len(items):
                 self._itemIdx = 0
-
-            logHandler.log.error(f"Failed to parse event: {service.name}, {data}")
+        else:
+            logHandler.log.warning(f"Unhandled event {code}: {service.name}, {data}")
 
     def script_toggleInterface(self, gesture):
         self.enabled = not self.enabled
@@ -301,24 +304,64 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             ui.message(_("No menu selected"))
     script_sayCurrentMenu.__doc__ = _("Speaks the current menu name")
 
+    def _getMenuItems(self):
+        """Get the items list for the current menu."""
+        menuItems = self._menuItems.get(self._currentService.name, {})
+        return menuItems.get("items", [])
+
     def script_focusPrevious(self, gesture):
+        items = self._getMenuItems()
+        if not items:
+            ui.message(_("No items"))
+            return
         self._itemIdx -= 1
         if self._itemIdx < 0:
-            self._itemIdx = len(self._items) - 1
+            self._itemIdx = len(items) - 1
         self.script_sayItem(None)
     script_focusPrevious.__doc__ = _("Focus the previous menu item")
-    
+
     def script_focusNext(self, gesture):
-        self._itemIdx = (self._itemIdx + 1) % len(self._menuItems)
+        items = self._getMenuItems()
+        if not items:
+            ui.message(_("No items"))
+            return
+        self._itemIdx = (self._itemIdx + 1) % len(items)
         self.script_sayItem(None)
     script_focusNext.__doc__ = _("Focus the next menu item")
 
     def script_sayItem(self, gesture):
-        ui.message(self._menuItems[self._itemIdx])
+        items = self._getMenuItems()
+        if not items:
+            ui.message(_("No items"))
+            return
+        if self._itemIdx >= len(items):
+            self._itemIdx = 0
+        item = items[self._itemIdx]
+        # Items can be dicts with "name" key or plain strings
+        if isinstance(item, dict):
+            ui.message(item.get("name", _("Unknown item")))
+        else:
+            ui.message(str(item))
     script_sayItem.__doc__ = _("Speaks the selected menu item")
-        
+
     def script_activate(self, gesture):
-        ui.message(_("Unimplemented"))
+        items = self._getMenuItems()
+        if not items:
+            ui.message(_("No items"))
+            return
+        if self._itemIdx >= len(items):
+            self._itemIdx = 0
+        # Get current menu ID
+        menus = self._menus.get(self._currentService.name, [])
+        if self._menuIdx >= len(menus):
+            ui.message(_("No menu selected"))
+            return
+        menuId = menus[self._menuIdx][0]
+        # Send activation event to service
+        self.postServiceEvent(self._currentService, events.MENU_ACTIVATE, {
+            "menuId": menuId,
+            "itemIdx": self._itemIdx
+        })
     script_activate.__doc__ = _("Activates this menu item")
 
     def script_refresh(self, gesture):
