@@ -103,12 +103,11 @@ class Service(threading.Thread):
             return
         self.postLog(f"Removing menu {self._menus[menuId]['name']}")
         del self._menus[menuId]
-        i = 0
         for menu in self._menuList:
             if menu[0] == menuId:
-                self._menuList.remove(i)
-                return
-        return
+                self._menuList.remove(menu)
+                break
+        self.postMenuUpdate()
     
     # helpers to post events to the add-on main thread
     
